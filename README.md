@@ -1,5 +1,7 @@
 # torch_sdf
 
+![Optimization of a set of 2D spherical SDFs to match a set image.](https://github.com/cory-b-scott/img_assets/blob/main/merged.gif)
+
 This is a project intended to facilitate manipulation of, and learning through, signed distance functions.
 
 It consists of operations for:

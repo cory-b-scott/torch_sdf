@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "torch_sdf"
+version = "0.0.1"
+authors = [
+  { name="Cory Scott", email="cbs@coloradocollege.edu" },
+]
+description = "A package for signed distance function (SDF) manipulation and visualization, written using Pytorch."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch>=2.*"
+ ]
+#[project.urls]
+#Homepage = "https://github.com/pypa/sampleproject"
+#Issues = "https://github.com/pypa/sampleproject/issues"

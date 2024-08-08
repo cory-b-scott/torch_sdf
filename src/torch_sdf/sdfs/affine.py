@@ -6,7 +6,7 @@ from ..ops import unary_ops as unops
 from .sdf import TorchSDF
 
 
-class TranslatedSDF(torch.nn.Module):
+class TranslatedSDF(TorchSDF):
 
     def __init__(self, offset, other, device='cpu'):
         super(TranslatedSDF, self).__init__()
@@ -27,7 +27,7 @@ class TranslatedSDF(torch.nn.Module):
         child_bbox = self.child.bbox()
         return (self.offset+child_bbox[0], self.offset+child_bbox[1])
 
-class ScaledSDF(torch.nn.Module):
+class ScaledSDF(TorchSDF):
 
     def __init__(self, scale, other, device='cpu'):
         super(ScaledSDF, self).__init__()
@@ -45,7 +45,7 @@ class ScaledSDF(torch.nn.Module):
         return scale2*self.child((1.0/scale2)*query)
 
 
-class RotatedSDF(torch.nn.Module):
+class RotatedSDF(TorchSDF):
 
     def __init__(self, theta, u, v, other, device='cpu'):
         super(RotatedSDF, self).__init__()

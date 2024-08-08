@@ -5,7 +5,7 @@ from ..ops import unary_ops as unops
 
 from .sdf import TorchSDF
 
-class EulerRepairSDF(torch.nn.Module):
+class EulerRepairSDF(TorchSDF):
     def __init__(self, sdf, k=15, device='cpu'):
         super(EulerRepairSDF, self).__init__()
         self.device = device
@@ -53,7 +53,7 @@ class EulerRepairSDF(torch.nn.Module):
     def bbox(self):
         return self.child.bbox()
 
-class DiffusionRepairSDF(torch.nn.Module):
+class DiffusionRepairSDF(TorchSDF):
     def __init__(self, sdf, k=1, device='cpu'):
         super(DiffusionRepairSDF, self).__init__()
         self.device = device
@@ -85,24 +85,29 @@ class DiffusionRepairSDF(torch.nn.Module):
     def bbox(self):
         return self.child.bbox()
 
+class ContourRepairSDF(TorchSDF):
 
-
-class ContourRepairSDF(torch.nn.Module):
-    def __init__(self, sdf, k=1, pc = 800, device='cpu'):
+    def __init__(self, sdf, device='cpu'):
         super(ContourRepairSDF, self).__init__()
         self.device = device
         self.child = sdf
         self.register_module("child", self.child)
-        self.k = k
-        self.pc = pc
 
     def forward(self, query):
         dists = self.child(query)
-        _, idxs = torch.topk(torch.abs(dists), self.pc, largest=False)
-        reps = query[idxs, :]
-        new_dists = torch.cdist(query, reps).min(1)[0]
-        dists = torch.minimum(new_dists * torch.sign(dists), dists)
-        return dists
+        signs = torch.sign(dists)
+
+        level_set = query[torch.abs(dists) < 1e-3]
+
+        query_np = query.detach().cpu().numpy()
+        level_np = level_set.detach().cpu().numpy()
+        kdt = KDTree(level_np)
+        _, ind = kdt.query(query_np, k=1)
+        nearest = level_set[ind][:,0,:]
+        #print(query.shape, nearest.shape)
+        mod_dists = signs * torch.linalg.norm(query - nearest, axis=1)
+        new_dists = torch.minimum(mod_dists, dists)
+        return mod_dists
 
     def bbox(self):
         return self.child.bbox()

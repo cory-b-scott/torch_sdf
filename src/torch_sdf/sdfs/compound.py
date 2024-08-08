@@ -5,7 +5,7 @@ from ..ops import unary_ops as unops
 
 from .sdf import TorchSDF
 
-class UnionSDF(torch.nn.Module):
+class UnionSDF(TorchSDF):
 
     def __init__(self, sdfs, device='cpu', method='sharp'):
         super(UnionSDF, self).__init__()
@@ -27,7 +27,7 @@ class UnionSDF(torch.nn.Module):
         all_pts = torch.cat([lowers,uppers])
         return (all_pts.min(0)[0], all_pts.max(0)[0])
 
-class IntersectionSDF(torch.nn.Module):
+class IntersectionSDF(TorchSDF):
 
     def __init__(self, sdfs, device='cpu'):
         super(IntersectionSDF, self).__init__()
@@ -45,7 +45,7 @@ class IntersectionSDF(torch.nn.Module):
         all_pts = torch.cat([lowers,uppers])
         return (lowers.max(0)[0], uppers.min(0)[0])
 
-class BlendSDF(torch.nn.Module):
+class BlendSDF(TorchSDF):
 
     def __init__(self, sdfs, weights, device='cpu', method='sharp'):
         super(BlendSDF, self).__init__()
@@ -63,7 +63,7 @@ class BlendSDF(torch.nn.Module):
         #print(sfweights)#, torch.pow(sfweights+1,2.0)-1)
         return binops.weighted_sum(dists, sfweights.unsqueeze(1))
 
-class BarycentricSDF(torch.nn.Module):
+class BarycentricSDF(TorchSDF):
 
     def __init__(self, sdfA, sdfB, weights, device='cpu', method='sharp'):
         super(BarycentricSDF, self).__init__()
@@ -81,8 +81,8 @@ class BarycentricSDF(torch.nn.Module):
         c0, c1, c2, c3 = torch.nn.functional.softmax(self.weights, dim=0)
         return ((c1 + c2) * distsA) + ((c1 + c3) * distsB) + ((c0 - c1 - c2 - c3) * binops.sharp_intersection(distsA, distsB))
 
-class DifferenceSDF(torch.nn.Module):
-    
+class DifferenceSDF(TorchSDF):
+
     def __init__(self, sdfA, sdfB, device='cpu'):
         super(DifferenceSDF, self).__init__()
         self.device = device

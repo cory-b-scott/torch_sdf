@@ -6,7 +6,7 @@ from ..ops import unary_ops as unops
 from .sdf import TorchSDF
 
 
-class RoundSDF(torch.nn.Module):
+class RoundSDF(TorchSDF):
 
     def __init__(self, rad, other, device='cpu'):
         super(RoundSDF, self).__init__()
@@ -29,7 +29,7 @@ class RoundSDF(torch.nn.Module):
         return (cb[0] - self.rad, cb[1] + self.rad)
 
 
-class InvertSDF(torch.nn.Module):
+class InvertSDF(TorchSDF):
 
     def __init__(self, other, device='cpu'):
         super(InvertSDF, self).__init__()
@@ -39,7 +39,7 @@ class InvertSDF(torch.nn.Module):
     def forward(self, query):
         return -1*self.child(query)
 
-class ElongateSDF(torch.nn.Module):
+class ElongateSDF(TorchSDF):
 
     def __init__(self, rad, other, device='cpu'):
         super(ElongateSDF, self).__init__()
@@ -59,7 +59,7 @@ class ElongateSDF(torch.nn.Module):
         q = query - torch.clamp(query, -rad2, rad2)
         return self.child(q)
 
-class OnionSDF(torch.nn.Module):
+class OnionSDF(TorchSDF):
 
     def __init__(self, rad, other, device='cpu'):
         super(OnionSDF, self).__init__()
@@ -69,7 +69,7 @@ class OnionSDF(torch.nn.Module):
         self.register_module("child", self.child)
 
     def forward(self, query):
-        rad2 = torch.clamp(self.rad, min=SMALL_POS_NUM)
+        rad2 = self.rad#torch.clamp(self.rad, min=SMALL_POS_NUM)
         return unops.onion( self.child(query),  rad2  )
 
     def bbox(self):
@@ -77,7 +77,7 @@ class OnionSDF(torch.nn.Module):
         return (cb[0] - self.rad, cb[1] + self.rad)
 
 
-class NoisySDF(torch.nn.Module):
+class NoisySDF(TorchSDF):
     def __init__(self, rad, other, device='cpu'):
         super(NoisySDF, self).__init__()
         self.rad = rad
@@ -96,7 +96,7 @@ class NoisySDF(torch.nn.Module):
         cb = self.child.bbox()
         return (cb[0] - self.rad, cb[1] + self.rad)
 
-class LocalAverageSDF(torch.nn.Module):
+class LocalAverageSDF(TorchSDF):
     def __init__(self, radius, sdf, k=10, device='cpu'):
         super(LocalAverageSDF, self).__init__()
         self.device = device

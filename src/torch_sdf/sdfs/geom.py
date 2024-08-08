@@ -9,7 +9,7 @@ class SphereSDF(TorchSDF):
 
     def __init__(self, rad, device='cpu'):
         super(SphereSDF, self).__init__()
-        self.rad = rTorchSDF
+        self.rad = rad
         self.device = device
         try:
             self.register_parameter(name="rad", param=self.rad)

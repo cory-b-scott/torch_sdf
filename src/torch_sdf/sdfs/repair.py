@@ -5,6 +5,8 @@ from ..ops import unary_ops as unops
 
 from .sdf import TorchSDF
 
+from sklearn.neighbors import KDTree
+
 class EulerRepairSDF(TorchSDF):
     def __init__(self, sdf, k=15, device='cpu'):
         super(EulerRepairSDF, self).__init__()
@@ -97,15 +99,22 @@ class ContourRepairSDF(TorchSDF):
         dists = self.child(query)
         signs = torch.sign(dists)
 
-        level_set = query[torch.abs(dists) < 1e-3]
+        #print(torch.abs(dists).min())
+
+        level_set = query[torch.abs(dists) < 1e-2]
+
+        _, topk_idx = torch.topk(torch.abs(dists), 10, largest=False)
+
+        level_set = torch.cat([level_set, query[topk_idx]])
 
         query_np = query.detach().cpu().numpy()
         level_np = level_set.detach().cpu().numpy()
         kdt = KDTree(level_np)
         _, ind = kdt.query(query_np, k=1)
         nearest = level_set[ind][:,0,:]
-        #print(query.shape, nearest.shape)
-        mod_dists = signs * torch.linalg.norm(query - nearest, axis=1)
+        #nearest_dists = torch.abs(dists[ind][:,0])
+        #print(query.shape, nearest.shape, nearest_dists.shape, "%%%")
+        mod_dists = signs * (torch.linalg.norm(query - nearest, axis=1))
         new_dists = torch.minimum(mod_dists, dists)
         return mod_dists
 

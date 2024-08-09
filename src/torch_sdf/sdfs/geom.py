@@ -65,7 +65,7 @@ class RectSDF(TorchSDF):
 
 class QuadraticBezierSDF(TorchSDF):
 
-    def __init__(self, A, B, C device='cpu'):
+    def __init__(self, A, B, C, device='cpu'):
         super(QuadraticBezierSDF, self).__init__()
 
         self.A = A

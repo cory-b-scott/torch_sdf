@@ -93,3 +93,38 @@ class DifferenceSDF(TorchSDF):
 
     def forward(self, query):
         return self.childA(query) - self.childB(query)
+
+class SweptSDF2D(TorchSDF):
+
+    def __init__(self, sdfA, sdfB, device='cpu'):
+        super(SweptSDF2D, self).__init__()
+        self.device = device
+        self.childA = sdfA
+        self.childB = sdfB
+        self.register_module("childA", self.childA)
+        self.register_module("childB", self.childB)
+
+    def forward(self, query):
+        sdfA_dists = self.childA(query)
+        sdfA_grads = torch.autograd.grad(sdfA_dists.sum(), query, retain_graph=True)[0]
+        #print(sdfA_dists.shape, sdfA_grads.shape)
+
+        vec_to_nearest = sdfA_dists.unsqueeze(-1) * sdfA_grads
+        nearest = query + vec_to_nearest
+        dist_at_nearest = self.childA(nearest)
+        grad_at_nearest = torch.autograd.grad(dist_at_nearest.sum(), nearest, retain_graph=True)[0]
+
+        theta = -1*torch.angle(grad_at_nearest[:,0] + 1j*grad_at_nearest[:, 1])
+        sintheta = torch.sin(theta)
+        costheta = torch.cos(theta)
+
+        #print(sintheta.shape, theta.shape, )
+
+        vecx = vec_to_nearest[:,0]
+        vecy = vec_to_nearest[:,1]
+
+        #print(sintheta.shape, theta.shape, vecx.shape)
+        newvec = torch.stack([vecx * costheta - vecy*sintheta,vecx * sintheta + vecy*costheta],1)
+        #print(newvec.shape)
+
+        return self.childB(newvec)

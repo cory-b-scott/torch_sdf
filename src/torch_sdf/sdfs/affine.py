@@ -69,8 +69,8 @@ class RotatedSDF(TorchSDF):
             pass
 
     def forward(self, query):
-        up = self.u / (SMALL_POS_NUM + torch.linalg.norm(self.u))
-        vp = self.v / (SMALL_POS_NUM + torch.linalg.norm(self.v))
+        up = self.u / (1e-8 + torch.linalg.norm(self.u))
+        vp = self.v / (1e-8 + torch.linalg.norm(self.v))
 
         rotmat = torch.eye(self.u.shape[0], device=self.u.device, dtype=self.u.dtype)
         rotmat += torch.sin(-1.0*self.theta)*( torch.matmul(vp, up.T) - torch.matmul(up, vp.T)  )

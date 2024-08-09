@@ -7,7 +7,14 @@ from .sdf import TorchSDF
 
 from sklearn.neighbors import KDTree
 
-class EulerRepairSDF(TorchSDF):
+
+class RepairSDF(TorchSDF):
+
+    def bbox(self):
+        return self.child.bbox()
+
+
+class EulerRepairSDF(RepairSDF):
     def __init__(self, sdf, k=15, device='cpu'):
         super(EulerRepairSDF, self).__init__()
         self.device = device
@@ -52,10 +59,7 @@ class EulerRepairSDF(TorchSDF):
         dists = dists*signs
         return dists#torch.minimum(dists, og_dists)
 
-    def bbox(self):
-        return self.child.bbox()
-
-class DiffusionRepairSDF(TorchSDF):
+class DiffusionRepairSDF(RepairSDF):
     def __init__(self, sdf, k=1, device='cpu'):
         super(DiffusionRepairSDF, self).__init__()
         self.device = device
@@ -84,10 +88,7 @@ class DiffusionRepairSDF(TorchSDF):
             dists = dists - 1e-3*signs*(sampled_normals-1)
         return dists
 
-    def bbox(self):
-        return self.child.bbox()
-
-class ContourRepairSDF(TorchSDF):
+class ContourRepairSDF(RepairSDF):
 
     def __init__(self, sdf, device='cpu'):
         super(ContourRepairSDF, self).__init__()
@@ -101,9 +102,9 @@ class ContourRepairSDF(TorchSDF):
 
         #print(torch.abs(dists).min())
 
-        level_set = query[torch.abs(dists) < 1e-2]
+        level_set = query[torch.abs(dists) < 1e-3]
 
-        _, topk_idx = torch.topk(torch.abs(dists), 10, largest=False)
+        _, topk_idx = torch.topk(torch.abs(dists), 1, largest=False)
 
         level_set = torch.cat([level_set, query[topk_idx]])
 
@@ -112,11 +113,9 @@ class ContourRepairSDF(TorchSDF):
         kdt = KDTree(level_np)
         _, ind = kdt.query(query_np, k=1)
         nearest = level_set[ind][:,0,:]
-        #nearest_dists = torch.abs(dists[ind][:,0])
+        nearest_dists = dists[ind][:,0]
+        #print(nearest_dists)
         #print(query.shape, nearest.shape, nearest_dists.shape, "%%%")
-        mod_dists = signs * (torch.linalg.norm(query - nearest, axis=1))
+        mod_dists = (nearest_dists + signs*torch.linalg.norm(query - nearest, axis=1))
         new_dists = torch.minimum(mod_dists, dists)
-        return mod_dists
-
-    def bbox(self):
-        return self.child.bbox()
+        return new_dists

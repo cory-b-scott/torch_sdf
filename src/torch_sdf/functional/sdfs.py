@@ -43,67 +43,100 @@ def triangle_2D(query, p0, p1, p2):
     #                 vec2(dot(pq2,pq2), s*(v2.x*e2.y-v2.y*e2.x)));
     return -torch.sqrt(dX.min(0)[0])*torch.sign(dY.min(0)[0]);
 
-def quad_bez_case1(sel, h, q, kx, b,c,d):
+def line_seg_2d_sdf(p, a, b):
+    pa = p-a
+    ba = (b-a).unsqueeze(0)
+    h = torch.clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0).unsqueeze(1)
+    #print(ba.shape, h.shape)
+    cross = torch.sign(rev_dot_2D(pa,ba))
+
+    return cross*torch.linalg.norm( pa - ba*h, axis=1 )
+
+def quad_bez_case1(sel, h, p, q, kx, b,c,d):
     print("$$$$$$$$$$$$$$$$$$$$$$$$$$$")
     print(h)
-    h = torch.nan_to_num(torch.sqrt(sel*h), nan=0)
+    h = torch.nan_to_num(torch.sqrt(h), nan=0)
     print(h)
-    x = (torch.stack([h,-h])-q)/2.0
+    x = ((torch.stack([h,-h])-q)/2.0).T
     print(x)
     uv = torch.sign(x)*torch.pow(torch.abs(x), 1.0/3.0)
     print(uv)
-    t = torch.clamp( uv.sum(1)-kx, min=0.0, max=1.0 )
-    print(t)
-    res = dot2(d + (c + b*t)*t)
-    print("%%",res)
-    return sel*torch.sqrt(res)
+    t= uv.sum(1,keepdim=True)
+    p = p.unsqueeze(1)
+    q = q.unsqueeze(1)
+    print(x.shape, p.shape, q.shape, t.shape)
+    t = t - (t*(t*t+3.0*p)+q)/(3.0*t*t+3.0*p)
+    t = torch.clamp( t-kx, min=0.0, max=1.0 );
+    w = d+(c+b*t)*t;
+    res = dot2(w);
+
+    return torch.nan_to_num(sel*torch.sqrt(res), nan=0)
 
 def quad_bez_case2(sel, p, q, kx, b,c,d):
-    print("************************")
-    z = torch.sqrt(sel * (-p));
-    print(z)
-    inner = sel*q/(sel*p*z*2.0)
-    inner = torch.nan_to_num(inner,nan=0.0)
-    print(inner)
-    v = torch.acos( inner ) / 3.0;
-    print(v)
+
+    z = torch.nan_to_num(torch.sqrt(-p), nan=0)
+    v = torch.acos(q/(p*z*2.0))/3.0;
     m = torch.cos(v);
-    print(m)
-    n = torch.sin(v)*1.732050808;
-    print(n)
+    n = torch.sin(v);
+    #m = cos_acos_3( q/(p*z*2.0) );
+    #n = sqrt(1.0-m*m);
+        #endif
+    n = n * 1.73205081;
     t = torch.clamp(torch.stack([m+m,-n-m,n-m])*z-kx,0.0,1.0).T
-    print(t)
     res = torch.minimum( dot2(d+(c+b*t[:,0:1])*t[:,0:1]),
                dot2(d+(c+b*t[:,1:2])*t[:,1:2]) )
-    print(res)
-    #quit()
-    return sel*torch.sqrt(res)
 
-def quad_bezier_sdf(pos, A, B, C):
+    return torch.nan_to_num(sel*torch.sqrt(res), nan=0)
+
+def quad_bezier_sdf(pos, A, B, C, k=128):
+    A = A.unsqueeze(0)
+    B = B.unsqueeze(0)
+    C = C.unsqueeze(0)
+    tvals = torch.linspace(0, 1, k, device=A.device).unsqueeze(1)
+    qpts = B + torch.pow(1-tvals, 2.0)*(A-B) + torch.pow(tvals, 2.0)*(C-B)
+    dmat = torch.cdist(pos, qpts)
+    dm, idxs = dmat.min(1)
+    sel = tvals[idxs]
+    selpts = qpts[idxs]
+    tangents = 2*(1-sel)*(A-B) + 2*sel*(C-B)
+    normals = torch.stack([-tangents[:,1], tangents[:,0]]).T
+    normals = .0001* (normals / torch.linalg.norm(normals, axis=1).unsqueeze(1))
+
+    norm_dist = torch.linalg.norm(pos - (selpts+normals), axis=1)
+
+    sign = torch.sign(norm_dist - dm)
+    return sign*dm
+    #quit()
+
+def __TRASH__TO_DELETE__(aa):
     A = A.unsqueeze(0)
     B = B.unsqueeze(0)
     C = C.unsqueeze(0)
 
-    a = B - A
+    a = B - A;
     b = A - 2.0*B + C
     c = a * 2.0
     d = A - pos
-    #print([item.shape for item in [a,b,c,d]])
+
+    #// cubic to be solved (kx*=3 and ky*=3)
     kk = 1.0/dot(b,b)
     kx = kk * dot(a,b)
-    ky = kk * (2.0*dot(a,a)+dot(d,b)) / 3.0
+    ky = kk * (2.0*dot(a,a)+dot(d,b))/3.0
     kz = kk * dot(d,a)
 
-    print([item.shape for item in [kk,kx,ky,kz]])
-    #quit()
-    p = ky - kx*kx
-    p3 = p*p*p
-    q = kx*(2.0*kx*kx-3.0*ky) + kz
-    h = q*q + 4.0*p3
-    print([item.shape for item in [p, p3, q, h]])
-    quit()
+    #float res = 0.0;
+    #float sgn = 0.0;
+
+    p  = ky - kx*kx;
+    q  = kx*(2.0*kx*kx - 3.0*ky) + kz;
+    p3 = p*p*p;
+    q2 = q*q;
+    h  = q2 + 4.0*p3;
+
+#    print([item.shape for item in [p, p3, q, h]])
+#    quit()
     sel = torch.sign(torch.nn.functional.relu(h))
-    case1_res = quad_bez_case1(sel,   h, q, kx, b,c,d)
+    case1_res = quad_bez_case1(sel,   h, p, q, kx, b,c,d)
     case2_res = quad_bez_case2(1-sel, p, q, kx, b,c,d)
 
     print("$$$",case1_res, case2_res)

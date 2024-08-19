@@ -41,7 +41,7 @@ class ScaledSDF(TorchSDF):
             pass
 
     def forward(self,query):
-        scale2 = torch.clamp(self.scale, min=SMALL_POS_NUM)
+        scale2 = torch.clamp(self.scale, min=1e-8)
         return scale2*self.child((1.0/scale2)*query)
 
 

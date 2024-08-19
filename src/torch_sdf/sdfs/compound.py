@@ -110,29 +110,49 @@ class SweptSDF2D(TorchSDF):
         sdfA_grads = torch.autograd.grad(sdfA_dists.sum(), query, retain_graph=True)[0]
         #print(sdfA_dists.shape, sdfA_grads.shape)
 
-        vec_to_nearest = -1*(sdfA_dists.unsqueeze(-1) * sdfA_grads)
+        vec_to_nearest = (sdfA_dists.unsqueeze(-1) * sdfA_grads)
         #print("$$$$$$$$$", vec_to_nearest)
         if self.orn:
-            nearest = query + vec_to_nearest
+            nearest = query - (1.0 - 3e-1)*vec_to_nearest
             dist_at_nearest = self.childA(nearest)
-            grad_at_nearest = torch.autograd.grad(dist_at_nearest.sum(), nearest, retain_graph=True)[0]
 
+            #print(dist_at_nearest.max())
+            #quit()
+            grad_at_nearest = torch.autograd.grad(dist_at_nearest.sum(), nearest, retain_graph=True)[0]
+            gnorms = torch.linalg.norm(grad_at_nearest, axis=1).unsqueeze(1)
+            grad_at_nearest /= (1e-8 + gnorms)
+            print("%%%", gnorms.mean())
+            #quit()
+            #import matplotlib.pyplot as plt
+            import matplotlib.pyplot as plt
+            #plt.scatter(  *nearest.detach().cpu().numpy().T, c= gnorms.detach().cpu().numpy())
+            #plt.show()
             #print("^^^^", nearest, dist_at_nearest, dist_at_nearest.sum(), grad_at_nearest)
             #quit()
 
-            theta = -1*torch.angle(grad_at_nearest[:,0] + 1j*grad_at_nearest[:, 1])
+            theta = -torch.angle(grad_at_nearest[:,1] + 1j*grad_at_nearest[:, 0])
+            #theta = theta % 3.1415926
+            #print(t)
             sintheta = torch.sin(theta)
             costheta = torch.cos(theta)
+            plt.scatter(  *grad_at_nearest.detach().cpu().numpy().T, c= theta.detach().cpu().numpy())
+            plt.show()
 
             #print(sintheta.shape, theta.shape, )
 
             vecx = vec_to_nearest[:,0]
             vecy = vec_to_nearest[:,1]
 
-            #print(sintheta.shape, theta.shape, vecx.shape)
             newvec = torch.stack([vecx * costheta - vecy*sintheta,vecx * sintheta + vecy*costheta],1)
-            #print(newvec.shape)
-
-            return self.childB(newvec)
+            #print(newvec.max())
+            #quit()
         else:
-            return self.childB(vec_to_nearest)
+            newvec = vec_to_nearest
+            #print(sintheta.shape, theta.shape, vecx.shape)
+            #print(newvec.shape)
+        result = self.childB(newvec)
+        #import matplotlib.pyplot as plt
+        #plt.scatter(  *newvec.detach().cpu().numpy().T, c= result.detach().cpu().numpy())
+        #plt.show()
+        #quit()
+        return result

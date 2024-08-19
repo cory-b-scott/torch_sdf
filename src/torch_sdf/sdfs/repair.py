@@ -116,6 +116,6 @@ class ContourRepairSDF(RepairSDF):
         nearest_dists = dists[ind][:,0]
         #print(nearest_dists)
         #print(query.shape, nearest.shape, nearest_dists.shape, "%%%")
-        mod_dists = (nearest_dists + signs*torch.linalg.norm(query - nearest, axis=1))
+        mod_dists = (signs*torch.linalg.norm(query - nearest, axis=1))
         new_dists = torch.minimum(mod_dists, dists)
         return new_dists

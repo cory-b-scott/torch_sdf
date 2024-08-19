@@ -23,6 +23,18 @@ class SphereSDF(TorchSDF):
     def bbox(self):
         return (-1*self.rad, self.rad)
 
+class Moon2DSDF(TorchSDF):
+
+    def __init__(self, d, ra, rb, device='cpu'):
+        super(Moon2DSDF, self).__init__()
+        self.d = d
+        self.ra = rb
+        self.rb = rb
+        self.device = device
+
+    def forward(self, query):
+        return f_sdfs.moon_2d_sdf(query, self.d, self.ra, self.rb)
+
 class Triangle2DSDF(TorchSDF):
 
     def __init__(self, pts, device='cpu'):
@@ -92,6 +104,9 @@ class LineSegmentSDF(TorchSDF):
     def forward(self, query):
         return f_sdfs.line_seg_2d_sdf(query, self.A, self.B)
 
+    def at(self, tvals):
+        return (1-tvals)*self.A + (tvals)*self.B
+
 class PolyLineSDF(TorchSDF):
 
     def __init__(self, ptslist, device='cpu'):
@@ -119,30 +134,32 @@ class RecursiveBezierSDF(TorchSDF):
             self.childB = RecursiveBezierSDF(ptslist[1:], device=device)
 
         self.device = device
+        self.k = 128
+
+    def at(self, tvals):
+        return (1-tvals)*self.childA.at(tvals) + (tvals)*self.childB.at(tvals)
 
     def forward(self, query):
-        qA = self.childA(query)
-        qB = self.childB(query)
+        #qA = self.childA(query)
+        #qB = self.childB(query)
 
-        sA = -1*torch.sign(qA)
-        sB = -1*torch.sign(qB)
-
-        gradA = torch.autograd.grad(qA.sum(), query, retain_graph=True)[0]
-        gradB = torch.autograd.grad(qB.sum(), query, retain_graph=True)[0]
-
-        nearestA = query + (qA.unsqueeze(1) * gradA)
-        nearestB = query + (qB.unsqueeze(1) * gradB)
+        #sA = -1*torch.sign(qA)
+        #sB = -1*torch.sign(qB)
 
 
-        tvals = torch.linspace(0,1,32, device=self.device).unsqueeze(-1).unsqueeze(-1)
+        tvals = torch.linspace(0,1,self.k, device=self.device).unsqueeze(-1)
 
         #print(nearestA.device, nearestB.device, tvals.device)
         #print(query.shape, nearestA.shape, nearestB.shape, tvals.shape)
-        qp = (1-tvals)*nearestA + (tvals)*nearestB
-
-        dists = torch.linalg.norm(query.unsqueeze(0) - qp, axis=-1)
+        qp = self.at(tvals)
+        #print(qp.shape)
+        #dists = torch.linalg.norm(query.unsqueeze(0) - qp, axis=-1)
         #print(dists.shape)
-        dists = dists.min(0)[0]
+        #dists = dists.min(0)[0]
         #dists = torch.cdist(query, qp).min(1)[0]
 
-        return torch.maximum(sA, sB)*dists
+        #return torch.maximum(sA, sB)*dists
+        dists = torch.stack([f_sdfs.line_seg_2d_sdf(query, A, B) for A,B in zip(qp[:-1], qp[1:])])
+        signs = torch.sign(dists)
+        dists = torch.abs(dists)
+        return signs.max(0)[0]*dists.min(0)[0]

@@ -21,7 +21,8 @@ class UnionSDF(TorchSDF):
             return binops.nary_smooth_union_exp(dists, k=1.0/96.0)
 
     def bbox(self):
-        child_bboxes = [item.bbox() for item in self.sdfs]
+        child_bboxes_orig = [item.bbox() for item in self.sdfs]
+        child_bboxes = [( (item[0].unsqueeze(0), item[1].unsqueeze(0)) if len(item[0].shape) == 1 else item) for item in child_bboxes_orig]
         lowers = torch.stack([item[0] for item in child_bboxes])
         uppers = torch.stack([item[1] for item in child_bboxes])
         all_pts = torch.cat([lowers,uppers])
@@ -36,10 +37,18 @@ class IntersectionSDF(TorchSDF):
 
     def forward(self, query):
         dists = torch.stack([sd(query) for sd in self.sdfs])
-        return binops.nary_sharp_intersection(dists)
+
+        result =  binops.nary_sharp_intersection(dists)
+        #print("$$$$$",query[result > 1e8],dists[:,result>1e8])
+        #quit()
+        return result
 
     def bbox(self):
-        child_bboxes = [item.bbox() for item in self.sdfs]
+        child_bboxes_orig = [item.bbox() for item in self.sdfs]
+        #max_dim =
+        child_bboxes = [( (item[0].unsqueeze(0), item[1].unsqueeze(0)) if len(item[0].shape) == 1 else item) for item in child_bboxes_orig]
+        #for item in child_bboxes
+        print( [item[0].shape for item in child_bboxes] )
         lowers = torch.stack([item[0] for item in child_bboxes])
         uppers = torch.stack([item[1] for item in child_bboxes])
         all_pts = torch.cat([lowers,uppers])

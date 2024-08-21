@@ -106,7 +106,7 @@ class ContourRepairSDF(RepairSDF):
 
         _, topk_idx = torch.topk(torch.abs(dists), 1, largest=False)
 
-        level_set = torch.cat([level_set, query[topk_idx]])
+        #level_set = torch.cat([level_set, query[topk_idx]])
 
         query_np = query.detach().cpu().numpy()
         level_np = level_set.detach().cpu().numpy()

@@ -75,6 +75,9 @@ class RectSDF(TorchSDF):
     def forward(self,query):
         return f_sdfs.axis_aligned_rect_sdf(query, self.bounds)
 
+    def bbox(self):
+        return (-1*self.bounds, self.bounds)
+
 class QuadraticBezierSDF(TorchSDF):
 
     def __init__(self, A, B, C, device='cpu'):

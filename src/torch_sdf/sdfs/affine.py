@@ -44,6 +44,9 @@ class ScaledSDF(TorchSDF):
         scale2 = torch.clamp(self.scale, min=1e-8)
         return scale2*self.child((1.0/scale2)*query)
 
+    def bbox(self):
+        child_bbox = self.child.bbox()
+        return (self.scale*child_bbox[0], self.scale*child_bbox[1])
 
 class RotatedSDF(TorchSDF):
 
